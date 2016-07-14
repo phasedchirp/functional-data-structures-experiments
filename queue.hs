@@ -1,3 +1,4 @@
+-- Annie Cherkaev and Sean Martin
 data Queue a = Queue {front :: [a], back :: [a]} deriving (Show,Eq)
 
 head' :: Queue a -> Maybe a
