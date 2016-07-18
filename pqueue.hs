@@ -1,6 +1,9 @@
+{-# LANGUAGE ViewPatterns #-}
+
 -- Written by Annie Cherkaev and Sean Martin
 
 import Test.QuickCheck
+import Test.QuickCheck.Function
 
 
 data SkewHeap a = Empty | Node (SkewHeap a) a (SkewHeap a) deriving (Eq,Show)
@@ -27,8 +30,9 @@ minDepth :: SkewHeap a -> Int
 minDepth Empty = 0
 minDepth (Node l _ r) = 1 +  min (minDepth l) (minDepth r)
 
-getMin :: SkewHeap a -> a
+getMin :: Bounded a => SkewHeap a -> a
 getMin (Node l x r) = x
+getMin Empty = maxBound
 
 -- Typeclass instances:
 
@@ -51,29 +55,42 @@ arbitrarySkewHeap size = do
 
 
 
--- Testing Functor laws (not sure these are totally correct tests?):
+-- Testing Functor laws:
 
-prop_functorID :: Eq a => SkewHeap a -> Bool
+prop_functorID :: (Eq a, Ord a, Num a) => SkewHeap a -> Bool
 prop_functorID h = fmap id h == h
 
-prop_functorComposition :: Eq c => (b -> c) -> (a -> b) -> SkewHeap a -> Bool
-prop_functorComposition f g h = (fmap (f . g) h) == (fmap f (fmap g h))
+prop_functorComposition :: (Eq c, Num c) => SkewHeap a -> Fun b c -> Fun a b -> Bool
+prop_functorComposition h (apply -> f) (apply -> g) = (fmap (f . g) h) == (fmap f (fmap g h))
+
+-- Technically works but probably don't use:
+prop_functorComposition' :: SkewHeap Char -> Fun Int Integer-> Fun Char Int -> Bool
+prop_functorComposition' h (apply -> f) (apply -> g) = (fmap (f . g) h) == (fmap f (fmap g h))
 
 
 -- Basic tests for the tree generating functions
 
-prop_heap :: (Arbitrary a, Eq a, Ord a) => [a] -> Bool
-prop_heap [] = True
-prop_heap [x] = True
-prop_heap (x:xs) = (foldr min x xs) == (getMin $ fromList xs)
+prop_heap :: SkewHeap Int -> Bool
+-- prop_heap [] = True
+-- prop_heap [x] = True
+-- prop_heap l@(x:xs) = (foldr min x xs) == (getMin $ fromList l)
+
+prop_heap Empty = True
+prop_heap (Node Empty _ Empty) = True
+prop_heap (Node l x r) = (x <= getMin l) && (x <= getMin r) && (prop_heap l) && (prop_heap r)
+
+prop_heap' :: SkewHeap Char -> Bool
+prop_heap' Empty = True
+prop_heap' (Node Empty _ Empty) = True
+prop_heap' (Node l x r) = (x <= getMin l) && (x <= getMin r) && (prop_heap' l) && (prop_heap' r)
 
 -- Example of failing test:
 prop_depth :: Int -> Bool
 prop_depth n = (maxDepth $ fromInt n) == n + 1
 
 -- Semi-Working version (very slow. poss. constrain input sizes?):
-prop_depth' :: Int -> Bool
-prop_depth' n = (maxDepth $ fromInt n) == (abs n) + 1
+prop_depth' :: Int -> Property
+prop_depth' n = ((abs n) < 10) ==> (maxDepth $ fromInt n) == (abs n) + 1
 
  -- Utility functions:
 
