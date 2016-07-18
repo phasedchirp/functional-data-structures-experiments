@@ -27,6 +27,9 @@ minDepth :: SkewHeap a -> Int
 minDepth Empty = 0
 minDepth (Node l _ r) = 1 +  min (minDepth l) (minDepth r)
 
+getMin :: SkewHeap a -> a
+getMin (Node l x r) = x
+
 -- Typeclass instances:
 
 instance Functor SkewHeap where
@@ -56,6 +59,21 @@ prop_functorID h = fmap id h == h
 prop_functorComposition :: Eq c => (b -> c) -> (a -> b) -> SkewHeap a -> Bool
 prop_functorComposition f g h = (fmap (f . g) h) == (fmap f (fmap g h))
 
+
+-- Basic tests for the tree generating functions
+
+prop_heap :: (Arbitrary a, Eq a, Ord a) => [a] -> Bool
+prop_heap [] = True
+prop_heap [x] = True
+prop_heap (x:xs) = (foldr min x xs) == (getMin $ fromList xs)
+
+-- Example of failing test:
+prop_depth :: Int -> Bool
+prop_depth n = (maxDepth $ fromInt n) == n + 1
+
+-- Semi-Working version (very slow. poss. constrain input sizes?):
+prop_depth' :: Int -> Bool
+prop_depth' n = (maxDepth $ fromInt n) == (abs n) + 1
 
  -- Utility functions:
 
